@@ -9,7 +9,7 @@ public class GameManager : MonoBehaviour
     public enum GameState { Playing, GameOver, Clear }
     public GameState State { get; private set; } = GameState.Playing;
 
-    [Header("UI (선택 사항, 없으면 비워둬도 됩니다)")]
+    [Header("UI 패널 (씬의 Canvas 밑에 만든 패널을 드래그)")]
     public GameObject gameOverPanel;
     public GameObject clearPanel;
 
@@ -21,6 +21,19 @@ public class GameManager : MonoBehaviour
             return;
         }
         Instance = this;
+
+        Time.timeScale = 1f;  // 재시작했을 때 멈춘 채로 시작하지 않도록
+
+        // 시작할 땐 패널이 꺼져 있어야 함
+        if (gameOverPanel != null) gameOverPanel.SetActive(false);
+        if (clearPanel != null) clearPanel.SetActive(false);
+    }
+
+    private void Update()
+    {
+        // 게임이 끝난 상태에선 R 키로도 재시작 가능
+        if (State != GameState.Playing && Input.GetKeyDown(KeyCode.R))
+            RestartLevel();
     }
 
     // 낙사(KillZone) 또는 작은 상태에서 피격 시 PlayerController.Die()에서 호출

@@ -1,6 +1,6 @@
 using UnityEngine;
 
-// Rigidbody2D(Gravity Scale 1), Collider2D가 필요합니다.
+// Rigidbody2D(Gravity Scale 1, Freeze Rotation Z), Collider2D가 필요합니다.
 // 프리팹으로 만들어 맵에 배치하세요.
 public class Goomba : MonoBehaviour
 {
@@ -9,23 +9,29 @@ public class Goomba : MonoBehaviour
 
     private Rigidbody2D rb;
     private Collider2D myCollider;
-    private int direction = -1; // 처음엔 왼쪽으로 이동
+    private int direction = -1;  // 처음엔 왼쪽으로 이동
+    private bool isDead;
 
-    private void Start()
+    private void Awake()
     {
         rb = GetComponent<Rigidbody2D>();
         myCollider = GetComponent<Collider2D>();
     }
 
-    private void Update()
+    private void FixedUpdate()
     {
+        if (isDead) return;
         rb.linearVelocity = new Vector2(direction * moveSpeed, rb.linearVelocity.y);
     }
 
     private void OnCollisionEnter2D(Collision2D collision)
     {
-        // 벽이나 다른 굼바 등에 수평으로 부딪히면 방향 전환
-        if (collision.gameObject.CompareTag("Ground"))
+        if (isDead) return;
+
+        PlayerController player = collision.gameObject.GetComponent<PlayerController>();
+
+        // 플레이어가 아니면(벽, 블록, 파이프, 다른 굼바) 옆면 충돌 시 방향 전환
+        if (player == null)
         {
             foreach (ContactPoint2D contact in collision.contacts)
             {
@@ -38,26 +44,32 @@ public class Goomba : MonoBehaviour
             return;
         }
 
-        PlayerController player = collision.gameObject.GetComponent<PlayerController>();
-        if (player == null) return;
-
         Collider2D playerCollider = collision.collider;
 
-        // pivot 위치와 무관하게, 콜라이더의 실제 경계(bounds)로 비교
         // 플레이어의 바닥이 굼바의 윗면보다 위에 있으면 밟은 것으로 판정
-        bool isAbove = playerCollider.bounds.min.y >= myCollider.bounds.max.y - 0.15f;
+        bool isStomped = playerCollider.bounds.min.y >= myCollider.bounds.max.y - 0.2f;
 
-        Debug.Log("굼바 충돌 - 플레이어 bottom: " + playerCollider.bounds.min.y +
-                  " / 굼바 top: " + myCollider.bounds.max.y + " / isAbove: " + isAbove);
-
-        if (isAbove)
+        if (isStomped)
         {
             player.Bounce(stompBounceForce);
-            Destroy(gameObject);
+            Squash();
         }
         else
         {
-            player.Die();
+            player.TakeDamage();  // 큰 상태면 작아지고, 작은 상태면 죽음
         }
+    }
+
+    // 납작해진 뒤 잠시 후 사라짐
+    private void Squash()
+    {
+        isDead = true;
+        myCollider.enabled = false;
+        rb.simulated = false;
+
+        Vector3 s = transform.localScale;
+        transform.localScale = new Vector3(s.x, s.y * 0.4f, s.z);
+
+        Destroy(gameObject, 0.4f);
     }
 }
